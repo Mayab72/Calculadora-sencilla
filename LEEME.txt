@@ -1,0 +1,13 @@
+CALCULADORA SENCILLA — APLICACIÓN WEB INSTALABLE
+
+Contenido:
+- index.html: la calculadora.
+- manifest.webmanifest: nombre, icono y ajustes de instalación.
+- sw.js: permite guardar los archivos y abrir la calculadora sin conexión.
+- icon.svg: icono de la aplicación.
+
+IMPORTANTE:
+Para instalarla como aplicación y habilitar el funcionamiento sin conexión, estos archivos deben publicarse en un sitio HTTPS. Abrir index.html directamente desde Descargas no activa la instalación PWA.
+
+Siguiente paso:
+Subir la carpeta/archivos a un servicio de alojamiento web estático con HTTPS. Después se abre la dirección publicada en Chrome o Samsung Internet y se elige “Instalar aplicación” o “Añadir a pantalla de inicio”.

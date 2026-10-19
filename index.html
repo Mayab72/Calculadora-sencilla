@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#24262b">
+<meta name="description" content="Calculadora sencilla que funciona sin conexión.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+
+<title>Calculadora sencilla</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff;background:#f3f4f6}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px}
+.calculator{width:min(100%,360px);background:#24262b;border-radius:24px;padding:18px;box-shadow:0 12px 35px #0002}
+.display{min-height:104px;background:#e4e9dc;color:#20251e;border-radius:14px;padding:12px 15px;margin-bottom:14px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.history{min-height:22px;text-align:right;color:#687064;font-size:14px;overflow-wrap:anywhere}
+.value{text-align:right;font-size:clamp(28px,8vw,42px);font-weight:600;overflow-wrap:anywhere;line-height:1.2}
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+button{min-height:58px;border:0;border-radius:12px;background:#41444a;color:white;font:600 22px inherit;font-size:22px;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+button:active{filter:brightness(1.2);transform:scale(.98)}
+.utility{background:#777b82}.operator,.equals{background:#f58a21;color:#fff}.zero{grid-column:span 2}
+.note{text-align:center;color:#c3c5ca;font-size:12px;margin:13px 0 0}
+</style>
+</head>
+<body>
+<main class="calculator" aria-label="Calculadora">
+  <div class="display">
+    <div class="history" id="history" aria-live="polite"></div>
+    <div class="value" id="display" aria-live="polite">0</div>
+  </div>
+  <div class="keys" id="keys">
+    <button class="utility" data-action="clear">C</button>
+    <button class="utility" data-action="sign">+/−</button>
+    <button class="utility" data-action="percent">%</button>
+    <button class="operator" data-op="÷">÷</button>
+    <button data-num="7">7</button><button data-num="8">8</button><button data-num="9">9</button><button class="operator" data-op="×">×</button>
+    <button data-num="4">4</button><button data-num="5">5</button><button data-num="6">6</button><button class="operator" data-op="−">−</button>
+    <button data-num="1">1</button><button data-num="2">2</button><button data-num="3">3</button><button class="operator" data-op="+">+</button>
+    <button class="zero" data-num="0">0</button><button data-action="dot">.</button><button class="equals" data-action="equals">=</button>
+  </div>
+  <p class="note">También puedes usar el teclado de tu ordenador.</p>
+</main>
+<script>
+(() => {
+  const display = document.getElementById('display');
+  const history = document.getElementById('history');
+  const keys = document.getElementById('keys');
+  let value = '0', previous = null, operator = null, fresh = false, error = false;
+  const format = n => Number.isFinite(n) ? String(Number(n.toPrecision(12))) : null;
+  const render = () => { display.textContent = value; };
+  const clear = () => { value='0'; previous=null; operator=null; fresh=false; error=false; history.textContent=''; render(); };
+  const compute = (a,b,op) => op==='+'?a+b:op==='−'?a-b:op==='×'?a*b:op==='÷'?(b===0?null:a/b):b;
+  keys.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
+    if (button.dataset.num !== undefined) {
+      if (error) clear();
+      if (fresh) { value=button.dataset.num; fresh=false; }
+      else if (value==='0') value=button.dataset.num;
+      else if (value.replace('-','').replace('.','').length < 15) value+=button.dataset.num;
+      render(); return;
+    }
+    const action = button.dataset.action;
+    if (action==='clear') { clear(); return; }
+    if (action==='dot') {
+      if (error) clear();
+      if (fresh) { value='0.'; fresh=false; }
+      else if (!value.includes('.')) value+='.';
+      render(); return;
+    }
+    if (action==='sign') { if (!error && value!=='0') value=value.startsWith('-')?value.slice(1):'-'+value; render(); return; }
+    if (action==='percent') { if (!error) value=format(Number(value)/100) ?? 'Error'; render(); return; }
+    if (action==='equals') {
+      if (operator!==null && previous!==null && !error) {
+        const a=previous, b=Number(value), result=compute(a,b,operator);
+        history.textContent = `${a} ${operator} ${b} =`;
+        value=result===null?'No se puede dividir entre cero':(format(result) ?? 'Error');
+        error=result===null || value==='Error'; previous=null; operator=null; fresh=true; render();
+      }
+      return;
+    }
+    if (button.dataset.op && !error) {
+      const next=Number(value);
+      if (operator!==null && previous!==null && !fresh) {
+        const result=compute(previous,next,operator);
+        if (result===null) { value='No se puede dividir entre cero'; error=true; previous=null; operator=null; render(); return; }
+        value=format(result); previous=Number(value);
+      } else previous=next;
+      operator=button.dataset.op; history.textContent=`${value} ${operator}`; fresh=true; render();
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.ctrlKey || event.altKey || event.metaKey) return;
+    const key=event.key;
+    if (/^[0-9]$/.test(key)) keys.querySelector(`[data-num="${key}"]`).click();
+    else if (key==='.') keys.querySelector('[data-action="dot"]').click();
+    else if (key==='Enter' || key==='=') { event.preventDefault(); keys.querySelector('[data-action="equals"]').click(); }
+    else if (key==='Escape') clear();
+    else if (key==='Backspace' && !error) { value=value.length>1?value.slice(0,-1):'0'; render(); }
+    else { const map={'+':'+','-':'−','*':'×','/':'÷'}; if (map[key]) keys.querySelector(`[data-op="${map[key]}"]`).click(); }
+  });
+})();
+</script>
+<script>if ("serviceWorker" in navigator && location.protocol.startsWith("http")) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {})); }</script>
+</body>
+</html>
